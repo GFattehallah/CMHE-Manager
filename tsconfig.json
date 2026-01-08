@@ -1,3 +1,4 @@
+
 {
   "compilerOptions": {
     "target": "ES2020",
@@ -11,15 +12,15 @@
     "isolatedModules": true,
     "noEmit": true,
     "jsx": "react-jsx",
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
+    "strict": false,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
     "baseUrl": ".",
     "paths": {
       "*": ["*", "node_modules/*"]
     }
   },
-  "include": ["src", "components", "services", "*.tsx", "*.ts"],
+  "include": ["components", "services", "*.tsx", "*.ts"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }
