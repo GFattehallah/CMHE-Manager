@@ -1,10 +1,11 @@
+
 <!DOCTYPE html>
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CMHE Manager - Cabinet Médical</title>
-    <!-- Tailwind via CDN pour simplifier l'installation locale -->
+    <!-- Tailwind via CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -34,7 +35,7 @@
       @media print {
         @page { 
           margin: 0; 
-          size: A5 portrait; /* Format A5 strict */
+          size: A5 portrait; 
         }
         html, body {
           height: 210mm;
@@ -72,24 +73,38 @@
       .animate-fade-in {
         animation: fade-in 0.3s ease-out forwards;
       }
+
+      /* Custom scrollbar */
+      .custom-scrollbar::-webkit-scrollbar {
+        width: 4px;
+      }
+      .custom-scrollbar::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      .custom-scrollbar::-webkit-scrollbar-thumb {
+        background: #e2e8f0;
+        border-radius: 10px;
+      }
     </style>
   <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@^19.2.3",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "react/": "https://esm.sh/react@^19.2.3/",
-    "@google/genai": "https://esm.sh/@google/genai@^1.33.0",
+    "react": "https://esm.sh/react@^19.2.3",
+    "@google/genai": "https://esm.sh/@google/genai@^1.35.0",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "recharts": "https://esm.sh/recharts@^3.6.0",
-    "lucide-react": "https://esm.sh/lucide-react@^0.561.0",
-    "react-router-dom": "https://esm.sh/react-router-dom@^7.10.1",
-    "@fullcalendar/react": "https://esm.sh/@fullcalendar/react@^6.1.19",
-    "@fullcalendar/daygrid": "https://esm.sh/@fullcalendar/daygrid@^6.1.19",
-    "@fullcalendar/timegrid": "https://esm.sh/@fullcalendar/timegrid@^6.1.19",
-    "@fullcalendar/interaction": "https://esm.sh/@fullcalendar/interaction@^6.1.19",
-    "xlsx": "https://esm.sh/xlsx@0.18.5",
-    "vite": "https://esm.sh/vite@^7.3.0",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
+    "react-router-dom": "https://esm.sh/react-router-dom@^7.12.0",
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2",
+    "path": "https://esm.sh/path@^0.12.7",
+    "xlsx": "https://esm.sh/xlsx@^0.18.5",
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@^2.90.1",
+    "@fullcalendar/timegrid": "https://esm.sh/@fullcalendar/timegrid@^6.1.20",
+    "@fullcalendar/daygrid": "https://esm.sh/@fullcalendar/daygrid@^6.1.20",
+    "@fullcalendar/react": "https://esm.sh/@fullcalendar/react@^6.1.20",
+    "@fullcalendar/interaction": "https://esm.sh/@fullcalendar/interaction@^6.1.20"
   }
 }
 </script>
