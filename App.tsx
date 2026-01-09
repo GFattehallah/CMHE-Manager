@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, Calendar, Stethoscope, FileText, 
-  LogOut, Menu, X, ScrollText, Banknote, FileSpreadsheet, Shield, UserCircle
+  LogOut, Menu, X, ScrollText, Banknote, FileSpreadsheet, Shield, UserCircle, Database
 } from 'lucide-react';
 import { Dashboard } from './components/Dashboard';
 import { PatientManager } from './components/PatientManager';
@@ -14,6 +15,7 @@ import { BillingManager } from './components/BillingManager';
 import { FinanceManager } from './components/FinanceManager';
 import { AccountManager } from './components/AccountManager';
 import { ImportPatients } from './components/ImportPatients';
+import { MaintenanceManager } from './components/MaintenanceManager';
 import { LoginPage } from './components/LoginPage';
 import { AuthService } from './services/authService';
 import { User, Permission, Role } from './types';
@@ -69,14 +71,17 @@ const MainLayout: React.FC<{user: User, onLogout: () => void}> = ({ user, onLogo
     { label: 'Trésorerie & Finance', icon: Banknote, path: '/finance', permission: Permission.FINANCE },
     { label: 'Importation Patients', icon: FileSpreadsheet, path: '/import-patients', permission: Permission.IMPORT },
     { label: 'Gestion du Personnel', icon: Shield, path: '/users', permission: Permission.USERS },
+    { label: 'Migration & Backup', icon: Database, path: '/maintenance', permission: Permission.USERS },
   ];
 
-  // On force la permission DMP si l'utilisateur est admin ou médecin (sécurité supplémentaire contre session obsolète)
   const userPermissions = user.permissions || [];
-  const isAdminOrDoc = user.role === Role.ADMIN || user.role === Role.DOCTOR;
+  const isAdmin = user.role === Role.ADMIN;
+  const isDoc = user.role === Role.DOCTOR;
 
+  // L'Admin voit TOUT. Le docteur voit le DMP par défaut.
   const visibleNavItems = navItems.filter(item => {
-    if (item.permission === Permission.DMP_VIEW && isAdminOrDoc) return true;
+    if (isAdmin) return true;
+    if (item.permission === Permission.DMP_VIEW && (isAdmin || isDoc)) return true;
     return userPermissions.includes(item.permission);
   });
 
@@ -141,6 +146,7 @@ const MainLayout: React.FC<{user: User, onLogout: () => void}> = ({ user, onLogo
             <Route path="/billing" element={<BillingManager />} />
             <Route path="/finance" element={<FinanceManager />} />
             <Route path="/users" element={<AccountManager />} />
+            <Route path="/maintenance" element={<MaintenanceManager />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>

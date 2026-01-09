@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+
+import React, { useMemo, useState, useEffect } from 'react';
 import { 
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell, AreaChart, Area
@@ -6,34 +7,50 @@ import {
 import { 
   Users, CreditCard, Calendar as CalIcon, Activity, Clock, Plus, 
   FileText, TrendingUp, AlertCircle, Download, Database, Pill, FileSpreadsheet,
-  Table as TableIcon, TrendingDown, ChevronRight, PieChart as PieIcon, Filter, Banknote, Coins
+  Table as TableIcon, TrendingDown, ChevronRight, PieChart as PieIcon, Filter, Banknote, Coins, Loader2
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { DataService } from '../services/dataService';
 import { AuthService } from '../services/authService';
-import { AppointmentStatus, EXPENSE_CATEGORIES, Permission } from '../types';
+import { AppointmentStatus, EXPENSE_CATEGORIES, Permission, Patient, Appointment, Invoice, Role } from '../types';
 
 export const Dashboard: React.FC = () => {
-  const patients = DataService.getPatients();
-  const appointments = DataService.getAppointments();
-  const invoices = DataService.getInvoices();
-  
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
   const currentUser = AuthService.getCurrentUser();
-  const canSeeStats = currentUser?.permissions.includes(Permission.STATS);
+  const isAdmin = currentUser?.role === Role.ADMIN;
+  const canSeeStats = currentUser?.permissions.includes(Permission.STATS) || isAdmin;
 
   const [chartPeriod, setChartPeriod] = useState<'6m' | '1y'>('6m');
+
+  useEffect(() => {
+    const loadAll = async () => {
+      setIsLoading(true);
+      const [p, a, i] = await Promise.all([
+        DataService.getPatients(),
+        DataService.getAppointments(),
+        DataService.getInvoices()
+      ]);
+      setPatients(p);
+      setAppointments(a);
+      setInvoices(i);
+      setIsLoading(false);
+    };
+    loadAll();
+  }, []);
 
   const now = new Date();
   const today = now.toISOString().split('T')[0];
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
   
-  // KPI: RDV du jour
   const todayAppointmentsList = appointments
     .filter(a => a.date.startsWith(today) && a.status !== AppointmentStatus.CANCELLED)
     .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-  // KPI Finances
   const todayRevenue = invoices
     .filter(i => i.date.startsWith(today) && i.status === 'PAID')
     .reduce((sum, i) => sum + i.amount, 0);
@@ -78,6 +95,17 @@ export const Dashboard: React.FC = () => {
     return p ? `${p.lastName} ${p.firstName}` : 'Inconnu';
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex-1 flex items-center justify-center h-[calc(100vh-80px)]">
+        <div className="flex flex-col items-center gap-4">
+          <Loader2 className="w-10 h-10 text-medical-600 animate-spin" />
+          <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">Synchronisation Cloud...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="p-6 space-y-6 animate-fade-in max-w-[1600px] mx-auto pb-20">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
@@ -85,6 +113,18 @@ export const Dashboard: React.FC = () => {
           <h1 className="text-3xl font-bold text-slate-800 tracking-tight">Tableau de Bord</h1>
           <p className="text-slate-500 font-medium">Cabinet Médical CMHE • Ait Melloul</p>
         </div>
+
+        {/* RACCOURCI MAINTENANCE POUR ADMIN */}
+        {isAdmin && (
+          <Link to="/maintenance" className="bg-slate-800 text-white px-5 py-3 rounded-2xl flex items-center gap-3 hover:bg-slate-700 transition shadow-lg shadow-slate-100 group">
+             <Database size={20} className="text-slate-400 group-hover:text-white transition-colors"/>
+             <div className="flex flex-col text-left">
+                <span className="text-[10px] font-black uppercase tracking-widest opacity-60 leading-none mb-1">Système</span>
+                <span className="text-xs font-bold">Migration & Backup</span>
+             </div>
+             <ChevronRight size={16} className="ml-2 opacity-40 group-hover:opacity-100 group-hover:translate-x-1 transition-all"/>
+          </Link>
+        )}
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
