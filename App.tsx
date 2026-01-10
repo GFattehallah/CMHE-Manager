@@ -48,13 +48,13 @@ const App: React.FC = () => {
     setUser(null);
   };
 
+  if (!user) {
+    return <LoginPage onLogin={handleLogin} />;
+  }
+
   return (
     <Router>
-      {!user ? (
-        <LoginPage onLogin={handleLogin} />
-      ) : (
-        <MainLayout user={user} onLogout={handleLogout} />
-      )}
+      <MainLayout user={user} onLogout={handleLogout} />
     </Router>
   );
 };
@@ -77,10 +77,9 @@ const MainLayout: React.FC<{user: User, onLogout: () => void}> = ({ user, onLogo
     { label: 'Migration & Backup', icon: Database, path: '/maintenance', permission: Permission.USERS },
   ];
 
-  // Sécurisation des permissions pour éviter les crashs si l'objet user est incomplet
-  const userPermissions = user?.permissions || [];
-  const isAdmin = user?.role === Role.ADMIN;
-  const isDoc = user?.role === Role.DOCTOR;
+  const userPermissions = user.permissions || [];
+  const isAdmin = user.role === Role.ADMIN;
+  const isDoc = user.role === Role.DOCTOR;
 
   const visibleNavItems = navItems.filter(item => {
     if (isAdmin) return true;
@@ -99,7 +98,7 @@ const MainLayout: React.FC<{user: User, onLogout: () => void}> = ({ user, onLogo
           <div className="h-20 flex items-center px-6 border-b border-slate-100">
             <div className="w-10 h-10 bg-medical-600 rounded-xl flex items-center justify-center text-white font-black text-xl mr-3 shadow-md">C</div>
             <div className={`flex flex-col ${!isSidebarOpen && 'lg:hidden group-hover:flex'}`}>
-              <span className="font-black text-lg text-slate-800 tracking-tighter uppercase leading-tight">CMHE Mgr</span>
+              <span className="font-black text-lg text-slate-800 tracking-tighter uppercase">CMHE Mgr</span>
               <div className="flex items-center gap-1.5">
                 {isCloud ? (
                   <span className="flex items-center gap-1 text-[8px] font-black text-emerald-500 uppercase tracking-widest"><Cloud size={8}/> Cloud Sync</span>
@@ -118,12 +117,12 @@ const MainLayout: React.FC<{user: User, onLogout: () => void}> = ({ user, onLogo
 
           <div className="p-4 border-t border-slate-100">
             <div className={`mb-4 p-3 bg-slate-50 rounded-2xl flex items-center gap-3 ${!isSidebarOpen && 'lg:hidden group-hover:flex'}`}>
-               <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center font-bold text-slate-500 text-xs uppercase">
-                 {user?.name?.[0] || '?'}
+               <div className="w-8 h-8 bg-slate-200 rounded-full flex items-center justify-center font-bold text-slate-500 text-xs">
+                 {user.name[0]}
                </div>
                <div className="flex flex-col">
-                 <span className="text-xs font-bold text-slate-800 truncate w-32">{user?.name}</span>
-                 <span className="text-[9px] font-bold text-slate-400 uppercase">{user?.role}</span>
+                 <span className="text-xs font-bold text-slate-800 truncate w-32">{user.name}</span>
+                 <span className="text-[9px] font-bold text-slate-400 uppercase">{user.role}</span>
                </div>
             </div>
             <button onClick={onLogout} className="flex items-center gap-3 px-4 py-3 w-full text-slate-400 hover:bg-rose-50 hover:text-rose-600 rounded-xl transition-all font-bold text-sm">
