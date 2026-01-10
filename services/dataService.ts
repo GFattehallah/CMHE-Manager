@@ -21,7 +21,7 @@ const getFromStorage = <T>(key: string, defaultData: T): T => {
     }
     return JSON.parse(stored);
   } catch (err) {
-    console.warn(`Erreur de lecture Storage pour ${key}:`, err);
+    console.warn(`Local Storage Error (${key}):`, err);
     return defaultData;
   }
 };
@@ -30,7 +30,7 @@ const saveToStorage = (key: string, data: any) => {
   try {
     localStorage.setItem(key, JSON.stringify(data));
   } catch (err) {
-    console.error(`Erreur d'écriture Storage pour ${key}:`, err);
+    console.error(`Local Storage Save Error (${key}):`, err);
   }
 };
 
@@ -41,7 +41,7 @@ export const DataService = {
       try {
         const { data, error } = await supabase!.from('users').select('*');
         if (!error && data) return data as User[];
-      } catch (e) { console.error("Cloud Error (Users):", e); }
+      } catch (e) { console.warn("Supabase Fetch Error (Users)"); }
     }
     return getFromStorage(KEYS.USERS, MOCK_USERS);
   },
@@ -69,7 +69,7 @@ export const DataService = {
       try {
         const { data, error } = await supabase!.from('patients').select('*');
         if (!error && data) return data as Patient[];
-      } catch (e) { console.error("Cloud Error (Patients):", e); }
+      } catch (e) { console.warn("Supabase Fetch Error (Patients)"); }
     }
     return getFromStorage(KEYS.PATIENTS, MOCK_PATIENTS);
   },
@@ -119,7 +119,7 @@ export const DataService = {
     saveToStorage(KEYS.APPOINTMENTS, appts);
   },
 
-  // --- FACTURES / RECETTES ---
+  // --- FACTURES ---
   getInvoices: async (): Promise<Invoice[]> => {
     if (isSupabaseConfigured()) {
       try {
