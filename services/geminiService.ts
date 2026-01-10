@@ -1,72 +1,86 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
+
+const getApiKey = (): string => {
+  try {
+    // @ts-ignore
+    return (typeof process !== 'undefined' && process.env && process.env.API_KEY) || "";
+  } catch (e) {
+    return "";
+  }
+};
 
 export const GeminiService = {
   analyzeSymptoms: async (symptoms: string, patientHistory: string[]): Promise<string> => {
-    // Create a new GoogleGenAI instance right before making an API call to ensure it uses the most up-to-date environment key
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const apiKey = getApiKey();
+    if (!apiKey) return "Clé IA non configurée.";
+    
+    const ai = new GoogleGenAI({ apiKey });
     
     try {
       const prompt = `
-        Tu es un assistant médical expérimenté pour un médecin généraliste au Maroc.
+        Tu es un expert médical de haut niveau exerçant au Maroc. 
+        Analyse les symptômes suivants en tenant compte des antécédents du patient.
         
-        Contexte Patient:
-        Antécédents: ${patientHistory.join(', ') || 'Aucun'}
+        CONTEXTE PATIENT :
+        - Antécédents : ${patientHistory.length > 0 ? patientHistory.join(', ') : 'Aucun'}
         
-        Symptômes actuels rapportés:
+        SYMPTÔMES ACTUELS :
         ${symptoms}
         
-        Tâche:
-        1. Propose 3 diagnostics différentiels probables.
-        2. Suggère les examens complémentaires pertinents si nécessaire.
-        3. Propose une ligne de traitement standard.
+        INSTRUCTIONS :
+        1. Propose 3 hypothèses de diagnostics.
+        2. Recommande les examens complémentaires.
+        3. Propose une conduite à tenir.
         
-        Réponds de manière concise, structurée en Markdown, en français médical professionnel.
+        Réponds en Markdown, français, de manière professionnelle.
       `;
 
-      // Use 'gemini-3-flash-preview' for basic text tasks as per recommendations
       const response = await ai.models.generateContent({
-        model: 'gemini-3-flash-preview',
+        model: 'gemini-3-pro-preview',
         contents: prompt,
+        config: {
+          thinkingConfig: { thinkingBudget: 4000 },
+          temperature: 0.2,
+        },
       });
 
-      // The text property returns the generated string output directly (not a method)
-      return response.text || "Aucune analyse générée.";
-    } catch (error) {
+      return response.text || "Erreur de génération d'analyse.";
+    } catch (error: any) {
       console.error("Gemini Error:", error);
-      return "Erreur lors de l'analyse. Vérifiez votre connexion internet.";
+      return "Service IA momentanément indisponible.";
     }
   },
 
   generatePrescriptionSuggestion: async (diagnosis: string): Promise<string[]> => {
-    // Create a new GoogleGenAI instance right before making an API call
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const apiKey = getApiKey();
+    if (!apiKey) return [];
+    
+    const ai = new GoogleGenAI({ apiKey });
 
     try {
         const prompt = `
-            Pour le diagnostic suivant : "${diagnosis}", suggère une liste de médicaments (DCI + Dosage + Posologie courte) couramment prescrits au Maroc.
-            Ne mets pas de texte introductif, juste la liste JSON.
+            Suggère une liste de médicaments (DCI + Dosage + Posologie) pour un diagnostic de "${diagnosis}".
+            Retourne UNIQUEMENT un tableau JSON de chaînes.
         `;
 
-        // Use 'gemini-3-flash-preview' for text-based tasks
         const response = await ai.models.generateContent({
-            model: 'gemini-3-flash-preview',
+            model: 'gemini-3-pro-preview',
             contents: prompt,
             config: {
                 responseMimeType: "application/json",
                 responseSchema: {
                   type: Type.ARRAY,
                   items: { type: Type.STRING }
-                }
+                },
+                temperature: 0.1
             }
         });
 
-        // Extract the JSON string from the .text property
         const text = response.text;
-        if(text) return JSON.parse(text);
-        return [];
+        return text ? JSON.parse(text.trim()) : [];
     } catch (e) {
-        console.error(e);
-        return ["Erreur de suggestion (Vérifiez la clé API)"];
+        return [];
     }
   }
 };
