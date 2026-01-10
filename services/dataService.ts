@@ -1,5 +1,7 @@
-import { Patient, Appointment, Invoice, Consultation, Expense, User, Role, Permission } from '../types';
+
+import { Patient, Appointment, Invoice, Consultation, Expense, User } from '../types';
 import { MOCK_PATIENTS, MOCK_APPOINTMENTS, MOCK_INVOICES, MOCK_EXPENSES, MOCK_USERS } from '../constants';
+import { supabase, isSupabaseConfigured } from './supabase';
 
 const KEYS = {
   PATIENTS: 'cmhe_patients',
@@ -13,9 +15,7 @@ const KEYS = {
 const getFromStorage = <T>(key: string, defaultData: T): T => {
   const stored = localStorage.getItem(key);
   if (!stored) {
-    if (Array.isArray(defaultData)) {
-      return [...defaultData] as unknown as T;
-    }
+    localStorage.setItem(key, JSON.stringify(defaultData));
     return defaultData;
   }
   try {
@@ -30,125 +30,182 @@ const saveToStorage = (key: string, data: any) => {
 };
 
 export const DataService = {
-  // Users
-  getUsers: (): User[] => {
-    const users = getFromStorage(KEYS.USERS, MOCK_USERS);
-    
-    // MIGRATION & REFRESH LOGIC
-    // On s'assure que les permissions sont à jour avec les nouvelles fonctionnalités (DMP)
-    return users.map(u => {
-      let updatedPermissions = [...u.permissions];
-      
-      // 1. L'admin a toujours tout
-      if (u.role === Role.ADMIN) {
-        updatedPermissions = Object.values(Permission);
-      } 
-      // 2. Migration automatique : Si accès patients, alors accès DMP
-      else if (updatedPermissions.includes(Permission.PATIENTS) && !updatedPermissions.includes(Permission.DMP_VIEW)) {
-        updatedPermissions.push(Permission.DMP_VIEW);
-      }
-      
-      // 3. Mise à jour des permissions pour les comptes par défaut si nécessaire
-      const mockMatch = MOCK_USERS.find(mu => mu.email === u.email);
-      if (mockMatch) {
-          // On fusionne pour être sûr d'avoir les nouveaux droits (DMP_VIEW, etc)
-          mockMatch.permissions.forEach(p => {
-              if (!updatedPermissions.includes(p)) updatedPermissions.push(p);
-          });
-      }
-
-      return { ...u, permissions: updatedPermissions };
-    });
+  getUsers: async (): Promise<User[]> => {
+    if (isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase!.from('users').select('*');
+        if (!error && data) return data as User[];
+      } catch (e) {}
+    }
+    return getFromStorage(KEYS.USERS, MOCK_USERS);
   },
-  saveUser: (user: User) => {
-    const users = DataService.getUsers();
+  saveUser: async (user: User) => {
+    if (isSupabaseConfigured()) {
+      await supabase!.from('users').upsert(user);
+    }
+    const users = await DataService.getUsers();
     const index = users.findIndex(u => u.id === user.id);
-    if (index >= 0) {
-      users[index] = user;
-    } else {
-      users.push(user);
-    }
+    if (index >= 0) users[index] = user;
+    else users.push(user);
     saveToStorage(KEYS.USERS, users);
   },
-  deleteUser: (id: string) => {
-    const users = DataService.getUsers().filter(u => u.id !== id);
+  deleteUser: async (id: string) => {
+    if (isSupabaseConfigured()) {
+      await supabase!.from('users').delete().eq('id', id);
+    }
+    const users = (await DataService.getUsers()).filter(u => u.id !== id);
     saveToStorage(KEYS.USERS, users);
   },
 
-  // Patients
-  getPatients: (): Patient[] => getFromStorage(KEYS.PATIENTS, MOCK_PATIENTS),
-  savePatient: (patient: Patient) => {
-    const patients = DataService.getPatients();
+  getPatients: async (): Promise<Patient[]> => {
+    if (isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase!.from('patients').select('*');
+        if (!error && data) return data as Patient[];
+      } catch (e) {}
+    }
+    return getFromStorage(KEYS.PATIENTS, MOCK_PATIENTS);
+  },
+  savePatient: async (patient: Patient) => {
+    if (isSupabaseConfigured()) {
+      await supabase!.from('patients').upsert(patient);
+    }
+    const patients = await DataService.getPatients();
     const index = patients.findIndex(p => p.id === patient.id);
-    if (index >= 0) {
-      patients[index] = patient;
-    } else {
-      patients.push(patient);
-    }
+    if (index >= 0) patients[index] = patient;
+    else patients.push(patient);
     saveToStorage(KEYS.PATIENTS, patients);
   },
-  deletePatient: (id: string) => {
-    const patients = DataService.getPatients().filter(p => p.id !== id);
+  deletePatient: async (id: string) => {
+    if (isSupabaseConfigured()) {
+      await supabase!.from('patients').delete().eq('id', id);
+    }
+    const patients = (await DataService.getPatients()).filter(p => p.id !== id);
     saveToStorage(KEYS.PATIENTS, patients);
   },
 
-  // Appointments
-  getAppointments: (): Appointment[] => getFromStorage(KEYS.APPOINTMENTS, MOCK_APPOINTMENTS),
-  saveAppointment: (apt: Appointment) => {
-    const appts = DataService.getAppointments();
+  getAppointments: async (): Promise<Appointment[]> => {
+    if (isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase!.from('appointments').select('*');
+        if (!error && data) return data as Appointment[];
+      } catch (e) {}
+    }
+    return getFromStorage(KEYS.APPOINTMENTS, MOCK_APPOINTMENTS);
+  },
+  saveAppointment: async (apt: Appointment) => {
+    if (isSupabaseConfigured()) {
+      await supabase!.from('appointments').upsert(apt);
+    }
+    const appts = await DataService.getAppointments();
     const index = appts.findIndex(a => a.id === apt.id);
-    if (index >= 0) {
-      appts[index] = apt;
-    } else {
-      appts.push(apt);
-    }
+    if (index >= 0) appts[index] = apt;
+    else appts.push(apt);
     saveToStorage(KEYS.APPOINTMENTS, appts);
   },
-  deleteAppointment: (id: string) => {
-    const appts = DataService.getAppointments().filter(a => a.id !== id);
+  deleteAppointment: async (id: string) => {
+    if (isSupabaseConfigured()) {
+      await supabase!.from('appointments').delete().eq('id', id);
+    }
+    const appts = (await DataService.getAppointments()).filter(a => a.id !== id);
     saveToStorage(KEYS.APPOINTMENTS, appts);
   },
 
-  // Invoices
-  getInvoices: (): Invoice[] => getFromStorage(KEYS.INVOICES, MOCK_INVOICES),
-  saveInvoice: (inv: Invoice) => {
-    const invoices = DataService.getInvoices();
+  getInvoices: async (): Promise<Invoice[]> => {
+    if (isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase!.from('invoices').select('*');
+        if (!error && data) return data as Invoice[];
+      } catch (e) {}
+    }
+    return getFromStorage(KEYS.INVOICES, MOCK_INVOICES);
+  },
+  saveInvoice: async (inv: Invoice) => {
+    if (isSupabaseConfigured()) {
+      await supabase!.from('invoices').upsert(inv);
+    }
+    const invoices = await DataService.getInvoices();
     const index = invoices.findIndex(i => i.id === inv.id);
-    if (index >= 0) {
-      invoices[index] = inv;
-    } else {
-      invoices.push(inv);
-    }
+    if (index >= 0) invoices[index] = inv;
+    else invoices.push(inv);
     saveToStorage(KEYS.INVOICES, invoices);
   },
-  deleteInvoice: (id: string) => {
-    const invoices = DataService.getInvoices().filter(i => i.id !== id);
-    saveToStorage(KEYS.INVOICES, invoices);
+  deleteInvoice: async (id: string) => {
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase!.from('invoices').delete().eq('id', id);
+      } catch (e) {}
+    }
+    const current = getFromStorage(KEYS.INVOICES, MOCK_INVOICES);
+    const updated = current.filter(i => i.id !== id);
+    saveToStorage(KEYS.INVOICES, updated);
+  },
+  deleteInvoicesBulk: async (ids: string[]) => {
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase!.from('invoices').delete().in('id', ids);
+      } catch (e) {}
+    }
+    const current = getFromStorage(KEYS.INVOICES, MOCK_INVOICES);
+    const updated = current.filter(i => !ids.includes(i.id));
+    saveToStorage(KEYS.INVOICES, updated);
   },
 
-  // Consultations
-  getConsultations: (): Consultation[] => getFromStorage(KEYS.CONSULTATIONS, []),
-  saveConsultation: (cons: Consultation) => {
-    const consultations = DataService.getConsultations();
+  getConsultations: async (): Promise<Consultation[]> => {
+    if (isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase!.from('consultations').select('*');
+        if (!error && data) return data as Consultation[];
+      } catch (e) {}
+    }
+    return getFromStorage(KEYS.CONSULTATIONS, []);
+  },
+  saveConsultation: async (cons: Consultation) => {
+    if (isSupabaseConfigured()) {
+      await supabase!.from('consultations').upsert(cons);
+    }
+    const consultations = await DataService.getConsultations();
     consultations.push(cons);
     saveToStorage(KEYS.CONSULTATIONS, consultations);
   },
 
-  // Expenses
-  getExpenses: (): Expense[] => getFromStorage(KEYS.EXPENSES, MOCK_EXPENSES),
-  saveExpense: (exp: Expense) => {
-    const expenses = DataService.getExpenses();
-    const index = expenses.findIndex(e => e.id === exp.id);
-    if (index >= 0) {
-      expenses[index] = exp;
-    } else {
-      expenses.push(exp);
+  getExpenses: async (): Promise<Expense[]> => {
+    if (isSupabaseConfigured()) {
+      try {
+        const { data, error } = await supabase!.from('expenses').select('*');
+        if (!error && data) return data as Expense[];
+      } catch (e) {}
     }
+    return getFromStorage(KEYS.EXPENSES, MOCK_EXPENSES);
+  },
+  saveExpense: async (exp: Expense) => {
+    if (isSupabaseConfigured()) {
+      await supabase!.from('expenses').upsert(exp);
+    }
+    const expenses = await DataService.getExpenses();
+    const index = expenses.findIndex(e => e.id === exp.id);
+    if (index >= 0) expenses[index] = exp;
+    else expenses.push(exp);
     saveToStorage(KEYS.EXPENSES, expenses);
   },
-  deleteExpense: (id: string) => {
-    const currentExpenses = DataService.getExpenses();
-    const updatedExpenses = currentExpenses.filter(e => e.id !== id);
-    saveToStorage(KEYS.EXPENSES, updatedExpenses);
+  deleteExpense: async (id: string) => {
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase!.from('expenses').delete().eq('id', id);
+      } catch (e) {}
+    }
+    const current = getFromStorage(KEYS.EXPENSES, MOCK_EXPENSES);
+    const updated = current.filter(e => e.id !== id);
+    saveToStorage(KEYS.EXPENSES, updated);
+  },
+  deleteExpensesBulk: async (ids: string[]) => {
+    if (isSupabaseConfigured()) {
+      try {
+        await supabase!.from('expenses').delete().in('id', ids);
+      } catch (e) {}
+    }
+    const current = getFromStorage(KEYS.EXPENSES, MOCK_EXPENSES);
+    const updated = current.filter(e => !ids.includes(e.id));
+    saveToStorage(KEYS.EXPENSES, updated);
   }
 };

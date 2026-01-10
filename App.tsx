@@ -3,7 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, Calendar, Stethoscope, FileText, 
-  LogOut, Menu, X, ScrollText, Banknote, FileSpreadsheet, Shield, UserCircle, Database
+  LogOut, Menu, X, ScrollText, Banknote, FileSpreadsheet, Shield, UserCircle, Database,
+  Cloud, CloudOff, RefreshCw
 } from 'lucide-react';
 import { Dashboard } from './components/Dashboard';
 import { PatientManager } from './components/PatientManager';
@@ -18,6 +19,7 @@ import { ImportPatients } from './components/ImportPatients';
 import { MaintenanceManager } from './components/MaintenanceManager';
 import { LoginPage } from './components/LoginPage';
 import { AuthService } from './services/authService';
+import { isSupabaseConfigured } from './services/supabase';
 import { User, Permission, Role } from './types';
 
 const SidebarItem = ({ icon: Icon, label, path, active }: any) => (
@@ -59,6 +61,7 @@ const App: React.FC = () => {
 
 const MainLayout: React.FC<{user: User, onLogout: () => void}> = ({ user, onLogout }) => {
   const [isSidebarOpen, setSidebarOpen] = useState(true);
+  const isCloud = isSupabaseConfigured();
   const location = useLocation();
 
   const navItems = [
@@ -78,7 +81,6 @@ const MainLayout: React.FC<{user: User, onLogout: () => void}> = ({ user, onLogo
   const isAdmin = user.role === Role.ADMIN;
   const isDoc = user.role === Role.DOCTOR;
 
-  // L'Admin voit TOUT. Le docteur voit le DMP par défaut.
   const visibleNavItems = navItems.filter(item => {
     if (isAdmin) return true;
     if (item.permission === Permission.DMP_VIEW && (isAdmin || isDoc)) return true;
@@ -97,7 +99,13 @@ const MainLayout: React.FC<{user: User, onLogout: () => void}> = ({ user, onLogo
             <div className="w-10 h-10 bg-medical-600 rounded-xl flex items-center justify-center text-white font-black text-xl mr-3 shadow-md">C</div>
             <div className={`flex flex-col ${!isSidebarOpen && 'lg:hidden group-hover:flex'}`}>
               <span className="font-black text-lg text-slate-800 tracking-tighter uppercase">CMHE Mgr</span>
-              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Cabinet Médical</span>
+              <div className="flex items-center gap-1.5">
+                {isCloud ? (
+                  <span className="flex items-center gap-1 text-[8px] font-black text-emerald-500 uppercase tracking-widest"><Cloud size={8}/> Cloud Sync</span>
+                ) : (
+                  <span className="flex items-center gap-1 text-[8px] font-black text-amber-500 uppercase tracking-widest"><CloudOff size={8}/> Local Mode</span>
+                )}
+              </div>
             </div>
           </div>
           
@@ -131,7 +139,9 @@ const MainLayout: React.FC<{user: User, onLogout: () => void}> = ({ user, onLogo
             {isSidebarOpen ? <X /> : <Menu />}
           </button>
           <span className="font-black text-slate-800">CMHE</span>
-          <div className="w-8 h-8 bg-slate-100 rounded-full"></div>
+          <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center">
+            {isCloud ? <Cloud size={16} className="text-emerald-500"/> : <CloudOff size={16} className="text-amber-500"/>}
+          </div>
         </header>
         
         <main className="flex-1 overflow-y-auto bg-slate-50">
