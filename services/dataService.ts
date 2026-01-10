@@ -13,35 +13,41 @@ const KEYS = {
 };
 
 const getFromStorage = <T>(key: string, defaultData: T): T => {
-  const stored = localStorage.getItem(key);
-  if (!stored) {
-    localStorage.setItem(key, JSON.stringify(defaultData));
-    return defaultData;
-  }
   try {
+    const stored = localStorage.getItem(key);
+    if (!stored) {
+      localStorage.setItem(key, JSON.stringify(defaultData));
+      return defaultData;
+    }
     return JSON.parse(stored);
-  } catch {
+  } catch (err) {
+    console.warn(`Erreur de lecture Storage pour ${key}:`, err);
     return defaultData;
   }
 };
 
 const saveToStorage = (key: string, data: any) => {
-  localStorage.setItem(key, JSON.stringify(data));
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (err) {
+    console.error(`Erreur d'écriture Storage pour ${key}:`, err);
+  }
 };
 
 export const DataService = {
+  // --- UTILISATEURS ---
   getUsers: async (): Promise<User[]> => {
     if (isSupabaseConfigured()) {
       try {
         const { data, error } = await supabase!.from('users').select('*');
         if (!error && data) return data as User[];
-      } catch (e) {}
+      } catch (e) { console.error("Cloud Error (Users):", e); }
     }
     return getFromStorage(KEYS.USERS, MOCK_USERS);
   },
   saveUser: async (user: User) => {
     if (isSupabaseConfigured()) {
-      await supabase!.from('users').upsert(user);
+      try { await supabase!.from('users').upsert(user); } catch (e) {}
     }
     const users = await DataService.getUsers();
     const index = users.findIndex(u => u.id === user.id);
@@ -51,24 +57,25 @@ export const DataService = {
   },
   deleteUser: async (id: string) => {
     if (isSupabaseConfigured()) {
-      await supabase!.from('users').delete().eq('id', id);
+      try { await supabase!.from('users').delete().eq('id', id); } catch (e) {}
     }
     const users = (await DataService.getUsers()).filter(u => u.id !== id);
     saveToStorage(KEYS.USERS, users);
   },
 
+  // --- PATIENTS ---
   getPatients: async (): Promise<Patient[]> => {
     if (isSupabaseConfigured()) {
       try {
         const { data, error } = await supabase!.from('patients').select('*');
         if (!error && data) return data as Patient[];
-      } catch (e) {}
+      } catch (e) { console.error("Cloud Error (Patients):", e); }
     }
     return getFromStorage(KEYS.PATIENTS, MOCK_PATIENTS);
   },
   savePatient: async (patient: Patient) => {
     if (isSupabaseConfigured()) {
-      await supabase!.from('patients').upsert(patient);
+      try { await supabase!.from('patients').upsert(patient); } catch (e) {}
     }
     const patients = await DataService.getPatients();
     const index = patients.findIndex(p => p.id === patient.id);
@@ -78,12 +85,13 @@ export const DataService = {
   },
   deletePatient: async (id: string) => {
     if (isSupabaseConfigured()) {
-      await supabase!.from('patients').delete().eq('id', id);
+      try { await supabase!.from('patients').delete().eq('id', id); } catch (e) {}
     }
     const patients = (await DataService.getPatients()).filter(p => p.id !== id);
     saveToStorage(KEYS.PATIENTS, patients);
   },
 
+  // --- RENDEZ-VOUS ---
   getAppointments: async (): Promise<Appointment[]> => {
     if (isSupabaseConfigured()) {
       try {
@@ -95,7 +103,7 @@ export const DataService = {
   },
   saveAppointment: async (apt: Appointment) => {
     if (isSupabaseConfigured()) {
-      await supabase!.from('appointments').upsert(apt);
+      try { await supabase!.from('appointments').upsert(apt); } catch (e) {}
     }
     const appts = await DataService.getAppointments();
     const index = appts.findIndex(a => a.id === apt.id);
@@ -105,12 +113,13 @@ export const DataService = {
   },
   deleteAppointment: async (id: string) => {
     if (isSupabaseConfigured()) {
-      await supabase!.from('appointments').delete().eq('id', id);
+      try { await supabase!.from('appointments').delete().eq('id', id); } catch (e) {}
     }
     const appts = (await DataService.getAppointments()).filter(a => a.id !== id);
     saveToStorage(KEYS.APPOINTMENTS, appts);
   },
 
+  // --- FACTURES / RECETTES ---
   getInvoices: async (): Promise<Invoice[]> => {
     if (isSupabaseConfigured()) {
       try {
@@ -122,7 +131,7 @@ export const DataService = {
   },
   saveInvoice: async (inv: Invoice) => {
     if (isSupabaseConfigured()) {
-      await supabase!.from('invoices').upsert(inv);
+      try { await supabase!.from('invoices').upsert(inv); } catch (e) {}
     }
     const invoices = await DataService.getInvoices();
     const index = invoices.findIndex(i => i.id === inv.id);
@@ -132,9 +141,7 @@ export const DataService = {
   },
   deleteInvoice: async (id: string) => {
     if (isSupabaseConfigured()) {
-      try {
-        await supabase!.from('invoices').delete().eq('id', id);
-      } catch (e) {}
+      try { await supabase!.from('invoices').delete().eq('id', id); } catch (e) {}
     }
     const current = getFromStorage(KEYS.INVOICES, MOCK_INVOICES);
     const updated = current.filter(i => i.id !== id);
@@ -142,15 +149,14 @@ export const DataService = {
   },
   deleteInvoicesBulk: async (ids: string[]) => {
     if (isSupabaseConfigured()) {
-      try {
-        await supabase!.from('invoices').delete().in('id', ids);
-      } catch (e) {}
+      try { await supabase!.from('invoices').delete().in('id', ids); } catch (e) {}
     }
     const current = getFromStorage(KEYS.INVOICES, MOCK_INVOICES);
     const updated = current.filter(i => !ids.includes(i.id));
     saveToStorage(KEYS.INVOICES, updated);
   },
 
+  // --- CONSULTATIONS ---
   getConsultations: async (): Promise<Consultation[]> => {
     if (isSupabaseConfigured()) {
       try {
@@ -162,13 +168,14 @@ export const DataService = {
   },
   saveConsultation: async (cons: Consultation) => {
     if (isSupabaseConfigured()) {
-      await supabase!.from('consultations').upsert(cons);
+      try { await supabase!.from('consultations').upsert(cons); } catch (e) {}
     }
     const consultations = await DataService.getConsultations();
     consultations.push(cons);
     saveToStorage(KEYS.CONSULTATIONS, consultations);
   },
 
+  // --- DEPENSES ---
   getExpenses: async (): Promise<Expense[]> => {
     if (isSupabaseConfigured()) {
       try {
@@ -180,7 +187,7 @@ export const DataService = {
   },
   saveExpense: async (exp: Expense) => {
     if (isSupabaseConfigured()) {
-      await supabase!.from('expenses').upsert(exp);
+      try { await supabase!.from('expenses').upsert(exp); } catch (e) {}
     }
     const expenses = await DataService.getExpenses();
     const index = expenses.findIndex(e => e.id === exp.id);
@@ -190,9 +197,7 @@ export const DataService = {
   },
   deleteExpense: async (id: string) => {
     if (isSupabaseConfigured()) {
-      try {
-        await supabase!.from('expenses').delete().eq('id', id);
-      } catch (e) {}
+      try { await supabase!.from('expenses').delete().eq('id', id); } catch (e) {}
     }
     const current = getFromStorage(KEYS.EXPENSES, MOCK_EXPENSES);
     const updated = current.filter(e => e.id !== id);
@@ -200,9 +205,7 @@ export const DataService = {
   },
   deleteExpensesBulk: async (ids: string[]) => {
     if (isSupabaseConfigured()) {
-      try {
-        await supabase!.from('expenses').delete().in('id', ids);
-      } catch (e) {}
+      try { await supabase!.from('expenses').delete().in('id', ids); } catch (e) {}
     }
     const current = getFromStorage(KEYS.EXPENSES, MOCK_EXPENSES);
     const updated = current.filter(e => !ids.includes(e.id));
