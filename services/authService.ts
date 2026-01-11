@@ -1,6 +1,6 @@
-
 import { User, Role, Permission } from '../types';
 import { DataService } from './dataService';
+import { MOCK_USERS } from '../constants';
 
 const AUTH_KEY = 'cmhe_user';
 
@@ -9,22 +9,31 @@ export const AuthService = {
     return new Promise((resolve, reject) => {
       setTimeout(async () => {
         try {
-          const users = await DataService.getUsers();
-          const user = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-          
+          let users = await DataService.getUsers();
+
+          // Si aucun utilisateur n'est retourné ou qu'aucun utilisateur ne correspond,
+          // on bascule sur les utilisateurs de démonstration (MOCK_USERS)
+          const findUser = (list: User[]) => list.find(u => u.email.toLowerCase() === email.toLowerCase());
+
+          let user = findUser(users);
+          if (!user) {
+            users = MOCK_USERS;
+            user = findUser(users) || undefined;
+          }
+
           let isValid = false;
           if (user) {
-              if (user.password && user.password === password) isValid = true;
-              else if (user.role === Role.ADMIN && password === 'admin123') isValid = true;
-              else if (user.role === Role.SECRETARY && password === 'sec123') isValid = true;
-              else if (user.role === Role.DOCTOR && password === 'doc123') isValid = true;
-              else if (user.role === Role.ASSISTANT && password === 'ast123') isValid = true;
+            if (user.password && user.password === password) isValid = true;
+            else if (user.role === Role.ADMIN && password === 'admin123') isValid = true;
+            else if (user.role === Role.SECRETARY && password === 'sec123') isValid = true;
+            else if (user.role === Role.DOCTOR && password === 'doc123') isValid = true;
+            else if (user.role === Role.ASSISTANT && password === 'ast123') isValid = true;
           }
 
           if (user && isValid) {
             // Pour s'assurer que l'Admin a toujours tout
             if (user.role === Role.ADMIN) {
-                user.permissions = Object.values(Permission);
+              user.permissions = Object.values(Permission);
             }
             localStorage.setItem(AUTH_KEY, JSON.stringify(user));
             resolve(user);
