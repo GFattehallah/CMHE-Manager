@@ -117,12 +117,6 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
               {!isLoading && <ChevronRight size={18} />}
             </button>
           </form>
-
-          <div className="mt-8 pt-6 border-t border-slate-100 text-center text-xs text-slate-400">
-             <p>Comptes de test:</p>
-             <p>Admin: admin@cmhe.ma / admin123</p>
-             <p>Secrétaire: secretaire@cmhe.ma / sec123</p>
-          </div>
         </div>
       </div>
     </div>
