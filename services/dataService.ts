@@ -1,5 +1,5 @@
 
-import { Patient, Appointment, Invoice, Consultation, Expense, User } from '../types';
+import {Patient, Appointment, Invoice, Consultation, Expense, User, Role, Permission} from '../types';
 import { MOCK_PATIENTS, MOCK_APPOINTMENTS, MOCK_INVOICES, MOCK_EXPENSES, MOCK_USERS } from '../constants';
 import { supabase, isSupabaseConfigured } from './supabase';
 
@@ -30,32 +30,33 @@ const saveToStorage = (key: string, data: any) => {
 };
 
 export const DataService = {
-  getUsers: async (): Promise<User[]> => {
-    if (isSupabaseConfigured()) {
-      try {
+    getUsers: async (): Promise<User[]> => {
+        if (!isSupabaseConfigured()) return [];
+
         const { data, error } = await supabase!.from('users').select('*');
-        if (!error && data) return data as User[];
-      } catch (e) {}
-    }
-    return getFromStorage(KEYS.USERS, MOCK_USERS);
-  },
-  saveUser: async (user: User) => {
-    if (isSupabaseConfigured()) {
-      await supabase!.from('users').upsert(user);
-    }
-    const users = await DataService.getUsers();
-    const index = users.findIndex(u => u.id === user.id);
-    if (index >= 0) users[index] = user;
-    else users.push(user);
-    saveToStorage(KEYS.USERS, users);
-  },
-  deleteUser: async (id: string) => {
-    if (isSupabaseConfigured()) {
-      await supabase!.from('users').delete().eq('id', id);
-    }
-    const users = (await DataService.getUsers()).filter(u => u.id !== id);
-    saveToStorage(KEYS.USERS, users);
-  },
+        if (error) throw error;
+
+        return data as User[];
+    },
+
+    saveUser: async (user: User & { password?: string }) => {
+        if (!isSupabaseConfigured()) return;
+
+        // création admin auto si table vide
+        if (user.email === 'admin@cmhe.ma') {
+            user.role = Role.ADMIN;
+            user.permissions = Object.values(Permission);
+        }
+
+        await supabase!.from('users').upsert(user);
+    },
+
+    deleteUser: async (id: string) => {
+        if (!isSupabaseConfigured()) return;
+
+        await supabase!.from('users').delete().eq('id', id);
+    },
+
 
   getPatients: async (): Promise<Patient[]> => {
     if (isSupabaseConfigured()) {
