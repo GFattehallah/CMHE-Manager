@@ -18,9 +18,13 @@ export const AppointmentManager: React.FC = () => {
     refreshData();
   }, []);
 
-  const refreshData = () => {
-    setAppointments(DataService.getAppointments());
-    setPatients(DataService.getPatients());
+  const refreshData = async () => {
+    const [appts, pats] = await Promise.all([
+      DataService.getAppointments(),
+      DataService.getPatients(),
+    ]);
+    setAppointments(Array.isArray(appts) ? appts : []);
+    setPatients(Array.isArray(pats) ? pats : []);
   };
 
   const getStatusColor = (status: AppointmentStatus) => {
@@ -65,7 +69,7 @@ export const AppointmentManager: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     
@@ -83,15 +87,15 @@ export const AppointmentManager: React.FC = () => {
       notes: formData.get('notes') as string
     };
 
-    DataService.saveAppointment(newAppointment);
-    refreshData();
+    await DataService.saveAppointment(newAppointment);
+    await refreshData();
     setIsModalOpen(false);
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (editingAppointment && window.confirm('Êtes-vous sûr de vouloir supprimer ce rendez-vous ?')) {
-      DataService.deleteAppointment(editingAppointment.id);
-      refreshData();
+      await DataService.deleteAppointment(editingAppointment.id);
+      await refreshData();
       setIsModalOpen(false);
     }
   };

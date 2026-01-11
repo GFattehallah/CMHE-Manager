@@ -17,9 +17,16 @@ export const PrescriptionManager: React.FC = () => {
     loadData();
   }, []);
 
-  const loadData = () => {
-    setConsultations(DataService.getConsultations().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
-    setPatients(DataService.getPatients());
+  const loadData = async () => {
+    const [allConsultations, pats] = await Promise.all([
+      DataService.getConsultations(),
+      DataService.getPatients(),
+    ]);
+    const sorted = (Array.isArray(allConsultations) ? allConsultations : []).sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+    );
+    setConsultations(sorted);
+    setPatients(Array.isArray(pats) ? pats : []);
   };
 
   const getPatient = (id: string) => patients.find(p => p.id === id);
@@ -201,8 +208,8 @@ export const PrescriptionManager: React.FC = () => {
         <QuickPrescriptionModal 
             patients={patients} 
             onClose={() => setIsQuickPrescriptionOpen(false)} 
-            onSave={(consult) => {
-                DataService.saveConsultation(consult);
+            onSave={async (consult) => {
+                await DataService.saveConsultation(consult);
                 loadData();
                 setIsQuickPrescriptionOpen(false);
                 handlePrint(consult);

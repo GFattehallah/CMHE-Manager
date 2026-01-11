@@ -12,10 +12,15 @@ export const PatientManager: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    setPatients(DataService.getPatients());
+    // load patients asynchronously from DataService
+    const loadPatients = async () => {
+      const data = await DataService.getPatients();
+      setPatients(Array.isArray(data) ? data : []);
+    };
+    loadPatients();
   }, []);
 
-  const handleSave = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     
@@ -32,22 +37,21 @@ export const PatientManager: React.FC = () => {
       address: formData.get('address') as string,
       medicalHistory: (formData.get('medicalHistory') as string).split(',').map(s => s.trim()).filter(s => s),
       allergies: (formData.get('allergies') as string).split(',').map(s => s.trim()).filter(s => s),
-      bloodType: formData.get('bloodType') as any,
-      weight: formData.get('weight') as string,
-      height: formData.get('height') as string,
       createdAt: editingPatient ? editingPatient.createdAt : new Date().toISOString()
     };
 
-    DataService.savePatient(newPatient);
-    setPatients(DataService.getPatients());
+    await DataService.savePatient(newPatient);
+    const updated = await DataService.getPatients();
+    setPatients(Array.isArray(updated) ? updated : []);
     setIsModalOpen(false);
     setEditingPatient(null);
   };
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (window.confirm('Confirmer la suppression de ce patient ?')) {
-      DataService.deletePatient(id);
-      setPatients(DataService.getPatients());
+      await DataService.deletePatient(id);
+      const updated = await DataService.getPatients();
+      setPatients(Array.isArray(updated) ? updated : []);
     }
   };
 

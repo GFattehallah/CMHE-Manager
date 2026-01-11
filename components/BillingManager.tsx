@@ -32,15 +32,19 @@ export const BillingManager: React.FC = () => {
     loadData();
   }, [canViewHistory]);
 
-  const loadData = () => {
+  const loadData = async () => {
     // Si l'utilisateur n'a pas le droit de voir l'historique, on ne charge rien
     if (canViewHistory) {
-      const allInvoices = DataService.getInvoices();
-      setInvoices(allInvoices.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+      const allInvoices = await DataService.getInvoices();
+      const sorted = (Array.isArray(allInvoices) ? allInvoices : []).sort(
+        (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime(),
+      );
+      setInvoices(sorted);
     } else {
       setInvoices([]);
     }
-    setPatients(DataService.getPatients());
+    const pats = await DataService.getPatients();
+    setPatients(Array.isArray(pats) ? pats : []);
   };
 
   const getPatient = (id: string) => patients.find(p => p.id === id);
@@ -81,15 +85,15 @@ export const BillingManager: React.FC = () => {
     }, 100);
   };
 
-  const handleStatusToggle = (invoice: Invoice) => {
+  const handleStatusToggle = async (invoice: Invoice) => {
     const newStatus: 'PAID' | 'PENDING' = invoice.status === 'PAID' ? 'PENDING' : 'PAID';
-    DataService.saveInvoice({ ...invoice, status: newStatus });
+    await DataService.saveInvoice({ ...invoice, status: newStatus });
     loadData();
   };
 
-  const handleDeleteInvoice = (id: string) => {
+  const handleDeleteInvoice = async (id: string) => {
     if (window.confirm('Confirmer la suppression ?')) {
-      DataService.deleteInvoice(id);
+      await DataService.deleteInvoice(id);
       loadData();
     }
   };
@@ -172,8 +176,8 @@ export const BillingManager: React.FC = () => {
         <InvoiceModal 
             patients={patients} 
             onClose={() => setIsModalOpen(false)} 
-            onSave={(inv: Invoice) => {
-                DataService.saveInvoice(inv);
+            onSave={async (inv: Invoice) => {
+                await DataService.saveInvoice(inv);
                 loadData();
                 setIsModalOpen(false);
                 // Si l'utilisateur n'a pas accès à l'historique, on lui propose d'imprimer directement la facture qu'il vient de créer

@@ -22,19 +22,26 @@ export const ConsultationManager: React.FC = () => {
   const [diagnosis, setDiagnosis] = useState('');
 
   useEffect(() => {
-    setPatients(DataService.getPatients());
+    const loadPatients = async () => {
+      const data = await DataService.getPatients();
+      setPatients(Array.isArray(data) ? data : []);
+    };
+    loadPatients();
   }, []);
 
   useEffect(() => {
-    if (selectedPatientId) {
-      const allConsultations = DataService.getConsultations();
-      const patientHistory = allConsultations
-        .filter(c => c.patientId === selectedPatientId)
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-      setConsultationHistory(patientHistory);
-    } else {
-      setConsultationHistory([]);
-    }
+    const loadHistory = async () => {
+      if (selectedPatientId) {
+        const allConsultations = await DataService.getConsultations();
+        const patientHistory = (Array.isArray(allConsultations) ? allConsultations : [])
+          .filter(c => c.patientId === selectedPatientId)
+          .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        setConsultationHistory(patientHistory);
+      } else {
+        setConsultationHistory([]);
+      }
+    };
+    loadHistory();
   }, [selectedPatientId]);
 
   const selectedPatient = patients.find(p => p.id === selectedPatientId);

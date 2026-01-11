@@ -17,9 +17,7 @@ const PERMISSION_LABELS: Record<Permission, string> = {
   [Permission.BILLING_VIEW]: 'Voir Historique Factures',
   [Permission.FINANCE]: 'Trésorerie & Finance',
   [Permission.USERS]: 'Gestion Utilisateurs',
-  [Permission.STATS]: 'Voir Totaux & Chiffres (CA, Impayés)',
-  // Fix: Added missing label for DMP_VIEW permission
-  [Permission.DMP_VIEW]: 'Accès Dossier Médical Partagé (DMP)'
+  [Permission.STATS]: 'Voir Totaux & Chiffres (CA, Impayés)'
 };
 
 export const AccountManager: React.FC = () => {
@@ -28,10 +26,14 @@ export const AccountManager: React.FC = () => {
   const [editingUser, setEditingUser] = useState<User | null>(null);
 
   useEffect(() => {
-    setUsers(DataService.getUsers());
+    const loadUsers = async () => {
+      const data = await DataService.getUsers();
+      setUsers(Array.isArray(data) ? data : []);
+    };
+    loadUsers();
   }, []);
 
-  const handleSave = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     
@@ -45,27 +47,30 @@ export const AccountManager: React.FC = () => {
       id: editingUser ? editingUser.id : `U-${Date.now()}`,
       name: formData.get('name') as string,
       email: formData.get('email') as string,
-      password: formData.get('password') as string || editingUser?.password || '123456',
+      password: (formData.get('password') as string) || editingUser?.password || '123456',
       role: formData.get('role') as Role,
       permissions: selectedPermissions,
       avatar: (formData.get('name') as string).split(' ').map(n => n[0]).join('').toUpperCase()
     };
 
-    DataService.saveUser(newUser);
-    setUsers(DataService.getUsers());
+    await DataService.saveUser(newUser);
+    const updated = await DataService.getUsers();
+    setUsers(Array.isArray(updated) ? updated : []);
     setIsModalOpen(false);
     setEditingUser(null);
   };
 
-  const handleDelete = (id: string) => {
-    const currentUser = JSON.parse(localStorage.getItem('cmhe_user') || '{}');
-    if (id === currentUser.id) {
+  const handleDelete = async (id: string) => {
+    const currentUserRaw = localStorage.getItem('cmhe_user');
+    const currentUser = currentUserRaw ? (JSON.parse(currentUserRaw) as User) : null;
+    if (currentUser && id === currentUser.id) {
         alert("Vous ne pouvez pas supprimer votre propre compte.");
         return;
     }
     if (window.confirm('Supprimer ce compte définitivement ?')) {
-      DataService.deleteUser(id);
-      setUsers(DataService.getUsers());
+      await DataService.deleteUser(id);
+      const updated = await DataService.getUsers();
+      setUsers(Array.isArray(updated) ? updated : []);
     }
   };
 

@@ -1,10 +1,9 @@
-
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation, Navigate } from 'react-router-dom';
 import { 
-  LayoutDashboard, Users, Calendar, Stethoscope, FileText, 
+  LayoutDashboard, Calendar, Stethoscope, FileText,
   LogOut, Menu, X, ScrollText, Banknote, FileSpreadsheet, Shield, UserCircle, Database,
-  Cloud, CloudOff, RefreshCw
+  Cloud, CloudOff
 } from 'lucide-react';
 import { Dashboard } from './components/Dashboard';
 import { PatientManager } from './components/PatientManager';
@@ -64,9 +63,16 @@ const MainLayout: React.FC<{user: User, onLogout: () => void}> = ({ user, onLogo
   const isCloud = isSupabaseConfigured();
   const location = useLocation();
 
+  const currentPath = React.useMemo(() => {
+    if (location.hash && location.hash.startsWith('#')) {
+      return location.hash.slice(1) || '/';
+    }
+    return location.pathname || '/';
+  }, [location.hash, location.pathname]);
+
   const navItems = [
     { label: 'Tableau de bord', icon: LayoutDashboard, path: '/', permission: Permission.DASHBOARD },
-    { label: 'Dossiers Médicaux (DMP)', icon: UserCircle, path: '/patients', permission: Permission.DMP_VIEW },
+    { label: 'Dossiers Médicaux (DMP)', icon: UserCircle, path: '/patients', permission: Permission.PATIENTS },
     { label: 'Agenda & RDV', icon: Calendar, path: '/agenda', permission: Permission.AGENDA },
     { label: 'Consultations', icon: Stethoscope, path: '/consultations', permission: Permission.CONSULTATIONS },
     { label: 'Ordonnances', icon: ScrollText, path: '/prescriptions', permission: Permission.PRESCRIPTIONS },
@@ -83,7 +89,8 @@ const MainLayout: React.FC<{user: User, onLogout: () => void}> = ({ user, onLogo
 
   const visibleNavItems = navItems.filter(item => {
     if (isAdmin) return true;
-    if (item.permission === Permission.DMP_VIEW && (isAdmin || isDoc)) return true;
+    // donne l'accès aux DMP aux médecins même sans permission PATIENTS explicite
+    if (item.path === '/patients' && (isAdmin || isDoc)) return true;
     return userPermissions.includes(item.permission);
   });
 
@@ -111,7 +118,7 @@ const MainLayout: React.FC<{user: User, onLogout: () => void}> = ({ user, onLogo
           
           <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto custom-scrollbar">
             {visibleNavItems.map((item, idx) => (
-              <SidebarItem key={`${item.path}-${idx}`} {...item} active={location.pathname === item.path} />
+              <SidebarItem key={`${item.path}-${idx}`} {...item} active={currentPath === item.path} />
             ))}
           </nav>
 
