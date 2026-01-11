@@ -6,33 +6,51 @@ const AUTH_KEY = 'cmhe_user';
 export const AuthService = {
     async login(email: string, password: string): Promise<User> {
         if (!isSupabaseConfigured()) {
-            throw new Error('Supabase non configuré');
+            console.error('Supabase non configuré');
+            throw new Error('Service indisponible');
         }
 
-        // 1. Chercher l'utilisateur dans la table users
-        const { data: users, error } = await supabase!
+        // 🔐 NORMALISATION EMAIL (CRITIQUE PROD)
+        const normalizedEmail = email.trim().toLowerCase();
+
+        // 🔎 Récupération utilisateur
+        const { data, error } = await supabase!
             .from('users')
             .select('*')
-            .eq('email', email)
+            .eq('email', normalizedEmail)
             .limit(1);
 
-        if (error || !users || users.length === 0) {
+        if (error) {
+            console.error('Erreur Supabase SELECT users:', error);
+            throw new Error('Erreur serveur');
+        }
+
+        if (!data || data.length === 0) {
+            console.warn('Utilisateur introuvable:', normalizedEmail);
             throw new Error('Utilisateur introuvable');
         }
 
-        const user = users[0] as User & { password?: string };
+        const user = data[0] as User & { password?: string };
 
-        // 2. Vérification du mot de passe (simple, volontairement)
-        if (!user.password || user.password !== password) {
+        // 🔑 Vérification mot de passe
+        if (!user.password) {
+            console.warn('Mot de passe manquant pour:', normalizedEmail);
             throw new Error('Mot de passe incorrect');
         }
 
-        // 3. Admin = tous les droits
+        if (user.password !== password) {
+            console.warn('Mot de passe incorrect pour:', normalizedEmail);
+            throw new Error('Mot de passe incorrect');
+        }
+
+        // 🛡 Admin = accès total
         if (user.role === Role.ADMIN) {
             user.permissions = Object.values(Permission);
         }
 
+        // 💾 Sauvegarde session
         localStorage.setItem(AUTH_KEY, JSON.stringify(user));
+
         return user;
     },
 
@@ -44,11 +62,20 @@ export const AuthService = {
         const raw = localStorage.getItem(AUTH_KEY);
         if (!raw) return null;
 
-        const user = JSON.parse(raw) as User;
-        if (user.role === Role.ADMIN) {
-            user.permissions = Object.values(Permission);
+        try {
+            const user = JSON.parse(raw) as User;
+
+            // Sécurité : Admin garde tous les droits
+            if (user.role === Role.ADMIN) {
+                user.permissions = Object.values(Permission);
+            }
+
+            return user;
+        } catch (e) {
+            console.error('Erreur parsing session user', e);
+            localStorage.removeItem(AUTH_KEY);
+            return null;
         }
-        return user;
     },
 
     isAuthenticated(): boolean {
