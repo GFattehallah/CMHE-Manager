@@ -1,4 +1,3 @@
-
 import {Patient, Appointment, Invoice, Consultation, Expense, User, Role, Permission} from '../types';
 import { MOCK_PATIENTS, MOCK_APPOINTMENTS, MOCK_INVOICES, MOCK_EXPENSES, MOCK_USERS } from '../constants';
 import { supabase, isSupabaseConfigured } from './supabase';
@@ -117,14 +116,46 @@ export const DataService = {
       try {
         const { data, error } = await supabase!.from('invoices').select('*');
         if (!error && data) return data as Invoice[];
-      } catch (e) {}
+        if (error) console.error('Supabase getInvoices error:', error);
+      } catch (e) {
+        console.error('Supabase getInvoices exception:', e);
+      }
     }
     return getFromStorage(KEYS.INVOICES, MOCK_INVOICES);
   },
   saveInvoice: async (inv: Invoice) => {
+    // Debug: voir exactement ce qu'on envoie à Supabase
+    console.log('[DEBUG] saveInvoice called with:', inv);
+
     if (isSupabaseConfigured()) {
-      await supabase!.from('invoices').upsert(inv);
+      try {
+        const { data, error } = await supabase!
+          .from('invoices')
+          .upsert(inv, { onConflict: 'id' });
+
+        if (error) {
+          console.error('[Supabase] saveInvoice error:', error);
+
+          // Cas spécifique: contrainte de clé étrangère sur patientId
+          if (String(error.message).includes('invoices_patientId_fkey')) {
+            console.error(
+              '[Supabase] FK error: patientId inexistant dans patients.id',
+              { patientId: inv.patientId, invoice: inv }
+            );
+          }
+
+          console.warn(
+            'Supabase saveInvoice conflict/erreur, fallback local uniquement:',
+            error.message || error
+          );
+        } else {
+          console.log('[Supabase] saveInvoice ok, data retournée:', data);
+        }
+      } catch (e) {
+        console.error('Supabase saveInvoice exception, fallback local uniquement:', e);
+      }
     }
+    // Toujours persister en local pour que l'UI voie les nouvelles factures même si Supabase est en conflit
     const invoices = await DataService.getInvoices();
     const index = invoices.findIndex(i => i.id === inv.id);
     if (index >= 0) invoices[index] = inv;

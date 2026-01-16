@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import { 
@@ -302,6 +301,8 @@ const FinanceImportModal = ({ type, onClose, onImported, patients }: { type: 'EX
   const [previews, setPreviews] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [defaultDate, setDefaultDate] = useState(new Date().toISOString().split('T')[0]);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const normalize = (str: string) => str ? str.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "") : "";
@@ -372,10 +373,16 @@ const FinanceImportModal = ({ type, onClose, onImported, patients }: { type: 'EX
             return foundKey ? row[foundKey] : null;
           };
 
-          const amount = parseAmount(getVal(['montant', 'prix', 'somme', 'amount', 'total', 'valeur', 'honoraire']));
+          // élargir la détection du montant pour couvrir "Montant(MAD)" et variantes
+          const amount = parseAmount(
+            getVal([
+              'montant(mad)', 'montant mad', 'montant', 'prix', 'somme',
+              'amount', 'total', 'valeur', 'honoraire'
+            ])
+          );
           const dateResult = parseExcelDate(getVal(['date', 'jour', 'le', 'periode', 'moment', 'time', 'echeance']));
           const modeRaw = normalize((getVal(['paiement', 'mode', 'reglement', 'type', 'moyen']) || 'Especes').toString());
-          
+
           let paymentMethod = PaymentType.CASH;
           if (modeRaw.includes('cheque')) paymentMethod = PaymentType.CHECK;
           else if (modeRaw.includes('virement')) paymentMethod = PaymentType.VIREMENT;
@@ -390,24 +397,47 @@ const FinanceImportModal = ({ type, onClose, onImported, patients }: { type: 'EX
             else if (catRaw.includes('salaire') || catRaw.includes('prime') || catRaw.includes('perso')) category = 'SALARY';
             else if (catRaw.includes('materiel') || catRaw.includes('equip') || catRaw.includes('immo')) category = 'EQUIPMENT';
             else if (catRaw.includes('tax') || catRaw.includes('impot') || catRaw.includes('etat')) category = 'TAX';
-            return { id: `IMP-E-${Math.random()}`, date: dateResult.date, isDateDetected: dateResult.isDetected, amount, description: desc, category, paymentMethod };
+            return {
+              id: `IMP-E-${Math.random()}`,
+              date: dateResult.date,
+              isDateDetected: dateResult.isDetected,
+              amount,
+              description: desc,
+              category,
+              paymentMethod
+            };
           } else {
             const desc = (getVal(['motif', 'acte', 'objet', 'libelle', 'description', 'designation']) || 'Recette Importée').toString();
             const patientName = (getVal(['patient', 'client', 'nom', 'beneficiaire', 'nomcomplet']) || '').toString();
             let patientId = 'divers';
             if (patientName.trim()) {
-                const p = patients.find(pat => {
-                    const fullName = normalize(`${pat.lastName} ${pat.firstName}`);
-                    const nameInExcel = normalize(patientName);
-                    return fullName.includes(nameInExcel) || nameInExcel.includes(normalize(pat.lastName));
-                });
-                if (p) patientId = p.id;
+              const p = patients.find(pat => {
+                const fullName = normalize(`${pat.lastName} ${pat.firstName}`);
+                const nameInExcel = normalize(patientName);
+                return fullName.includes(nameInExcel) || nameInExcel.includes(normalize(pat.lastName));
+              });
+              if (p) patientId = p.id;
             }
-            return { id: `IMP-R-${Math.random()}`, date: dateResult.date, isDateDetected: dateResult.isDetected, amount, patientId, patientName: patientName || 'Divers', paymentMethod, description: desc };
+            return {
+              id: `IMP-R-${Math.random()}`,
+              date: dateResult.date,
+              isDateDetected: dateResult.isDetected,
+              amount,
+              patientId,
+              patientName: patientName || 'Divers',
+              paymentMethod,
+              description: desc
+            };
           }
         });
-        setPreviews(mapped.filter(m => m.amount > 0));
-      } catch (err) { alert("Erreur de lecture du fichier Excel."); } finally { setIsLoading(false); }
+
+        // ne filtre plus agressivement les recettes à amount > 0, pour ne pas vider la liste
+        setPreviews(type === 'EXPENSE' ? mapped.filter(m => m.amount > 0) : mapped);
+      } catch (err) {
+        alert('Erreur de lecture du fichier Excel.');
+      } finally {
+        setIsLoading(false);
+      }
     };
     reader.readAsBinaryString(file);
   };
@@ -415,8 +445,11 @@ const FinanceImportModal = ({ type, onClose, onImported, patients }: { type: 'EX
   const confirmImport = async () => {
     if (previews.length === 0) return;
     setIsLoading(true);
+    setError(null);
+    setSuccess(null);
     try {
-      for(const item of previews) {
+      let count = 0;
+      for (const item of previews) {
         if (type === 'EXPENSE') {
           await DataService.saveExpense({
             id: `EXP-IMP-${Date.now()}-${Math.random()}`,
@@ -437,9 +470,17 @@ const FinanceImportModal = ({ type, onClose, onImported, patients }: { type: 'EX
             items: [{ description: item.description, price: item.amount }]
           });
         }
+        count++;
       }
+      setSuccess(`${count} ligne(s) importée(s) avec succès.`);
+      // onImported va recharger les données et fermer la modale côté parent
       onImported();
-    } finally { setIsLoading(false); }
+    } catch (e: any) {
+      console.error('Erreur lors de l\'import des données financières:', e);
+      setError("Une erreur s'est produite lors de l'import. Vérifiez la connexion Supabase / la table invoices.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -499,11 +540,25 @@ const FinanceImportModal = ({ type, onClose, onImported, patients }: { type: 'EX
             </div>
           )}
         </div>
-        <div className="p-6 border-t border-slate-100 bg-slate-50 flex gap-3">
-           <button onClick={onClose} className="flex-1 py-4 text-slate-400 font-black uppercase tracking-widest text-[10px] bg-white border border-slate-200 rounded-2xl transition">Annuler</button>
-           <button disabled={previews.length === 0 || isLoading} onClick={confirmImport} className={`flex-[2] py-4 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-xl transition disabled:opacity-50 ${type === 'EXPENSE' ? 'bg-rose-600 shadow-rose-100' : 'bg-emerald-600 shadow-emerald-100'}`}>
-             {isLoading ? 'Synchronisation...' : `Importer définitivement (${previews.length})`}
-           </button>
+        <div className="p-6 border-t border-slate-100 bg-slate-50 flex flex-col gap-3">
+          {error && (
+            <div className="w-full mb-2 px-4 py-2 rounded-xl bg-rose-50 border border-rose-100 text-rose-700 text-xs font-bold flex items-center gap-2">
+              <span>⚠</span>
+              <span>{error}</span>
+            </div>
+          )}
+          {success && (
+            <div className="w-full mb-2 px-4 py-2 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-700 text-xs font-bold flex items-center gap-2">
+              <span>✓</span>
+              <span>{success}</span>
+            </div>
+          )}
+          <div className="flex gap-3">
+            <button onClick={onClose} className="flex-1 py-4 text-slate-400 font-black uppercase tracking-widest text-[10px] bg-white border border-slate-200 rounded-2xl transition">Annuler</button>
+            <button disabled={previews.length === 0 || isLoading} onClick={confirmImport} className={`flex-[2] py-4 text-white font-black uppercase tracking-widest text-[10px] rounded-2xl shadow-xl transition disabled:opacity-50 ${type === 'EXPENSE' ? 'bg-rose-600 shadow-rose-100' : 'bg-emerald-600 shadow-emerald-100'}`}>
+              {isLoading ? 'Synchronisation...' : `Importer définitivement (${previews.length})`}
+            </button>
+          </div>
         </div>
       </div>
     </div>
